@@ -1,0 +1,2 @@
+- [API proxy setup](api-proxy.md) — Frontend must proxy /api through craco devServer to reach the FastAPI backend; direct localhost:8000 doesn't work in the browser preview.
+- [BoostChart data format](boost-chart-format.md) — BoostChart expects {day, value} keys; backend returns {date, score, label} — must normalize on fetch in Inicio.jsx.

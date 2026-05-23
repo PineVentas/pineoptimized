@@ -1,0 +1,139 @@
+{
+  "theme": "dark",
+  "archetype": "Electric & Neon",
+  "brand": {
+    "name": "Pine Opti",
+    "logo_url": "https://customer-assets.emergentagent.com/job_firewall-pro-2/artifacts/yp9jj9mp_logo.ico",
+    "aesthetic": "Hacker/cyber/pro-gamer, native Windows .exe feel, high-end PC optimization dashboard"
+  },
+  "typography": {
+    "headings": {
+      "family": "Rajdhani, sans-serif",
+      "weights": ["500", "600", "700"],
+      "usage": "H1, H2, primary navigation, major CTAs"
+    },
+    "body": {
+      "family": "JetBrains Mono, monospace",
+      "weights": ["400", "500"],
+      "usage": "Data points, logs, AI chat, system settings, general text"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight leading-none",
+      "h2": "text-2xl sm:text-3xl tracking-tight",
+      "h3": "text-xl sm:text-2xl",
+      "h4": "text-lg uppercase tracking-[0.2em]",
+      "body": "text-sm md:text-base leading-relaxed",
+      "small": "text-xs uppercase tracking-wider"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Rajdhani:wght@500;600;700&display=swap');"
+    ]
+  },
+  "colors": {
+    "background": {
+      "main": "#07090E",
+      "card": "rgba(10, 15, 25, 0.6)",
+      "card_hover": "rgba(20, 25, 40, 0.8)",
+      "sidebar": "#05070A"
+    },
+    "primary": {
+      "DEFAULT": "#14ff72",
+      "hover": "#00e660",
+      "glow": "rgba(20, 255, 114, 0.5)",
+      "muted": "rgba(20, 255, 114, 0.1)"
+    },
+    "secondary": {
+      "DEFAULT": "#d926ff",
+      "hover": "#f055ff",
+      "glow": "rgba(217, 38, 255, 0.5)",
+      "usage": "PRO badges, premium features"
+    },
+    "status": {
+      "success": "#14ff72",
+      "warning": "#ffaa00",
+      "danger": "#ff3333",
+      "info": "#00ccff"
+    },
+    "text": {
+      "primary": "#ffffff",
+      "secondary": "#a0a5b5",
+      "muted": "#555b6e"
+    },
+    "border": {
+      "DEFAULT": "rgba(255, 255, 255, 0.08)",
+      "active": "rgba(20, 255, 114, 0.3)"
+    }
+  },
+  "layout_and_spacing": {
+    "philosophy": "Dashboard density. Control room bento grid for data, asymmetric layout for main sections.",
+    "sidebar": "Narrow icon-rail (w-16) expanding on hover/active to show labels (w-64).",
+    "grid_system": {
+      "dashboard": "grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-6",
+      "tools": "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+    },
+    "padding_scale": "p-4 for small cards, p-6 for main panels, p-8 for hero sections"
+  },
+  "components": {
+    "cards": {
+      "style": "Glassmorphic. backdrop-blur-xl bg-[#0A0F19]/60 border border-white/5",
+      "radius": "rounded-xl",
+      "hover": "hover:border-[#14ff72]/30 hover:shadow-[0_0_15px_rgba(20,255,114,0.15)] transition-all duration-300"
+    },
+    "buttons": {
+      "primary": "bg-[#14ff72] text-black font-bold uppercase tracking-wider rounded-sm hover:bg-[#00e660] hover:shadow-[0_0_20px_rgba(20,255,114,0.4)] transition-all",
+      "secondary": "bg-transparent border border-[#14ff72]/50 text-[#14ff72] font-bold uppercase tracking-wider rounded-sm hover:bg-[#14ff72]/10 transition-all",
+      "pro": "bg-gradient-to-r from-[#d926ff] to-[#9d00ff] text-white font-bold uppercase tracking-wider rounded-sm hover:shadow-[0_0_20px_rgba(217,38,255,0.4)] transition-all"
+    },
+    "inputs": {
+      "style": "bg-[#05070A] border border-white/10 text-white rounded-sm focus:border-[#14ff72] focus:ring-1 focus:ring-[#14ff72]/50"
+    },
+    "toggles": {
+      "active": "bg-[#14ff72]",
+      "inactive": "bg-white/10"
+    }
+  },
+  "motion_and_interactions": {
+    "page_load": "Staggered slide-up fade (framer-motion or CSS keyframes), delay 50ms per item.",
+    "hover": "Subtle scale (scale-105 for icons), neon glow on borders.",
+    "scan_animation": "Matrix/terminal style text scrolling, progress bar with glowing leading edge."
+  },
+  "media": {
+    "images": [
+      {
+        "category": "background_main",
+        "url": "https://static.prod-images.emergentagent.com/jobs/13d46528-c88b-4777-9c27-970944bf261c/images/da909d467acb2b856e287561cea9094cde4a4103abf0fdc2940d27aa953ea80a.png",
+        "description": "Dark abstract background with subtle neon green glowing grid and noise texture. Use as main app background behind glassmorphism."
+      },
+      {
+        "category": "background_pro",
+        "url": "https://static.prod-images.emergentagent.com/jobs/13d46528-c88b-4777-9c27-970944bf261c/images/1d759da82e065f77de307a6d844f7b282c4ad6203ea7c2e9d6e5ec35b537d199.png",
+        "description": "Magenta glowing abstract particle background for the PRO activation card."
+      },
+      {
+        "category": "logo",
+        "url": "https://customer-assets.emergentagent.com/job_firewall-pro-2/artifacts/yp9jj9mp_logo.ico",
+        "description": "Pine Opti App Logo."
+      }
+    ]
+  },
+  "icons_library": "lucide-react (primary) or @phosphor-icons/react (for gaming feel). Phosphor is recommended: yarn add @phosphor-icons/react",
+  "accessibility_and_testing": {
+    "contrast": "Ensure all neon text over dark backgrounds passes 4.5:1.",
+    "testing": "All interactive elements MUST include data-testid attribute (e.g., data-testid='start-optimization-btn')"
+  },
+  "views_and_features": {
+    "dashboard_inicio": "User count, Optimization %, PRO card, CPU/GPU circular gauges, Big CTA card with logo, right side News/AI tips panel.",
+    "optimización": "Left subnav (Mis ajustes, Básico, Seguridad, etc.). Long list of settings with 'Editado'/'Predeterminado' badge. Sticky 'Aplicar' button. Anti-cheat protection panel under Seguridad (BlackBox, Keller SS, EAC, Vanguard) - shown locked.",
+    "herramientas": "Grid of glassmorphic cards for tools (StoreX, GameModeX, etc.) with varied gradients.",
+    "tweax_ai": "Full-page chat, mode tabs, input bar, cyberpunk bot persona.",
+    "configuración": "Toggles, Pin PRO, Discord RPC."
+  },
+  "instructions_to_main_agent": [
+    "Use standard HTML divs and sections styled with Tailwind for the main layouts. Use Shadcn only for complex interactive bits like Tabs or Select.",
+    "Implement the background images with fixed positioning, low opacity, and cover size.",
+    "Ensure all text is in Spanish as requested.",
+    "Mock the scan functionality with a fake progress flow and a mocked Claude JSON response simulating PC optimization.",
+    "Apply 'data-testid' to all buttons, inputs, tabs, and critical containers.",
+    "Wrap the layout in a fixed 100vh container to simulate a desktop .exe application without browser scrolling on the body. Only scroll inner panes."
+  ]
+}

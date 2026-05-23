@@ -1,0 +1,66 @@
+{
+  "name": "pine-opti-root",
+  "version": "1.2.0",
+  "description": "Pine Opti - Windows Gaming Optimizer Suite",
+  "main": "electron/main.js",
+  "private": true,
+  "scripts": {
+    "electron:dev": "electron .",
+    "electron:build": "electron-builder --win",
+    "build:frontend": "cd frontend && npm install --legacy-peer-deps && npm run build",
+    "build:exe": "npm run build:frontend && electron-builder --win",
+    "full-build": "npm install && npm run build:frontend && electron-builder --win"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.pineopti.gaming",
+    "productName": "Pine Opti",
+    "copyright": "Pine Opti Gaming Suite v1.2",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/build/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [],
+    "win": {
+      "icon": "assets/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Pine Opti",
+      "runAfterFinish": true,
+      "installerLanguages": ["es-419", "en-US"],
+      "language": "3082"
+    },
+    "portable": {
+      "artifactName": "PineOpti-v1.2-Portable.exe"
+    }
+  },
+  "dependencies": {
+    "systeminformation": "^5.31.6"
+  }
+}
