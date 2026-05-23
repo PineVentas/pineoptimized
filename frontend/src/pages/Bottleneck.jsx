@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Cpu, Microchip, AlertTriangle, CheckCircle, ChevronDown, Zap, TrendingUp, Monitor } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Cpu, Microchip, ChevronDown, Zap, TrendingUp, ArrowRight, Info, Gamepad2 } from "lucide-react";
 
 const CPUS = [
   // ── AMD Ryzen 9000 Series ──────────────────────────────────────
@@ -214,56 +214,97 @@ const GPUS = [
 
 const RESOLUTION_MULTIPLIER = { "1080p": 1.0, "1440p": 1.35, "4K": 1.8 };
 
+// FPS base estimates at score=100 for each game (GPU-adjusted, 1080p)
+const GAME_FPS_BASE = [
+  { name: "Valorant",         icon: "🎯", cpuW: 0.60, gpuW: 0.40, base: 420 },
+  { name: "CS2",              icon: "💣", cpuW: 0.55, gpuW: 0.45, base: 380 },
+  { name: "Free Fire (Emu)",  icon: "🔥", cpuW: 0.45, gpuW: 0.55, base: 240 },
+  { name: "PUBG",             icon: "🪖", cpuW: 0.40, gpuW: 0.60, base: 160 },
+  { name: "Fortnite",         icon: "🏗️", cpuW: 0.42, gpuW: 0.58, base: 200 },
+  { name: "Apex Legends",     icon: "🏆", cpuW: 0.45, gpuW: 0.55, base: 220 },
+  { name: "Warzone",          icon: "🎖️", cpuW: 0.38, gpuW: 0.62, base: 140 },
+];
+
+function estimateFPS(game, cpuScore, gpuScore, resolution) {
+  const resMult = { "1080p": 1.0, "1440p": 0.68, "4K": 0.42 };
+  const eff = (cpuScore * game.cpuW + gpuScore * game.gpuW) / 100;
+  return Math.round(game.base * eff * (resMult[resolution] || 1));
+}
+
 function calcBottleneck(cpuScore, gpuScore, resolution) {
   const gpuAdj = gpuScore * (RESOLUTION_MULTIPLIER[resolution] || 1);
   const ratio = cpuScore / gpuAdj;
-  if (ratio < 0.75) return { pct: Math.round((1 - ratio) * 100), type: "CPU", severity: ratio < 0.55 ? "high" : "medium" };
-  if (ratio > 1.35) return { pct: Math.round((1 - 1 / ratio) * 100), type: "GPU", severity: ratio > 1.6 ? "high" : "medium" };
-  return { pct: Math.round(Math.abs(ratio - 1) * 100), type: "balanced", severity: "low" };
+  const cpuUtil = Math.min(100, Math.round(ratio > 1 ? 100 : ratio * 100));
+  const gpuUtil = Math.min(100, Math.round(ratio < 1 ? 100 : (1 / ratio) * 100));
+  if (ratio < 0.75) return { pct: Math.round((1 - ratio) * 100), type: "CPU", severity: ratio < 0.55 ? "high" : "medium", cpuUtil, gpuUtil };
+  if (ratio > 1.35) return { pct: Math.round((1 - 1 / ratio) * 100), type: "GPU", severity: ratio > 1.6 ? "high" : "medium", cpuUtil, gpuUtil };
+  return { pct: Math.round(Math.abs(ratio - 1) * 100), type: "balanced", severity: "low", cpuUtil, gpuUtil };
 }
 
-function getUpgradePath(result, cpu, gpu) {
-  if (result.type === "CPU" && result.severity === "high") {
-    const newScore = Math.round(gpu.score * 0.85);
-    const match = CPUS.find(c => Math.abs(c.score - newScore) < 5);
-    return match ? `Actualiza a un ${match.name} para eliminar el cuello de botella` : "Considera un CPU de gama alta para este GPU";
+function getUpgradeCard(result, cpu, gpu) {
+  if (result.type === "CPU") {
+    const targetScore = Math.round(gpu.score * (RESOLUTION_MULTIPLIER["1080p"]) * 0.88);
+    const candidates = CPUS.filter(c => c.score >= targetScore && c.score <= targetScore + 18 && c.name !== cpu.name);
+    const match = candidates[0] || CPUS.find(c => c.tier === "flagship" && c.score > cpu.score);
+    const gain = match ? Math.round(((match.score - cpu.score) / cpu.score) * 100 * 0.7) : 0;
+    return match ? { component: "CPU", current: cpu.name, upgrade: match.name, gain, tier: match.tier } : null;
   }
-  if (result.type === "GPU" && result.severity === "high") {
-    const newScore = Math.round(cpu.score * 1.1);
-    const match = GPUS.find(g => Math.abs(g.score - newScore) < 6);
-    return match ? `Actualiza a una ${match.name} para eliminar el cuello de botella` : "Considera una GPU de mayor tier";
+  if (result.type === "GPU") {
+    const targetScore = Math.round(cpu.score * 1.05);
+    const candidates = GPUS.filter(g => g.score >= targetScore && g.score <= targetScore + 20 && g.name !== gpu.name);
+    const match = candidates[0] || GPUS.find(g => g.tier === "high" && g.score > gpu.score);
+    const gain = match ? Math.round(((match.score - gpu.score) / gpu.score) * 100 * 0.8) : 0;
+    return match ? { component: "GPU", current: gpu.name, upgrade: match.name, gain, tier: match.tier } : null;
   }
   return null;
 }
 
 function getRecs(result, cpu, gpu, resolution) {
-  const upgrade = getUpgradePath(result, cpu, gpu);
   if (result.type === "balanced") return [
     "Excelente combinación — sin cuello de botella significativo.",
-    `Tu setup está equilibrado para jugar a ${resolution}.`,
-    "Considera activar HAGS y ReBAR/SAM en BIOS para más rendimiento.",
+    `Tu setup está bien equilibrado para ${resolution}.`,
+    "Activa HAGS y ReBAR/SAM en BIOS para exprimir más rendimiento.",
     "Pine Opti puede mejorar estos FPS entre 5–15% con sus optimizaciones.",
   ];
   if (result.type === "CPU") return [
     `Tu ${cpu.name} está limitando la ${gpu.name}.`,
     result.severity === "high"
-      ? "El cuello de botella es severo — actualizar el CPU dará el mayor impacto."
-      : "Cuello de botella moderado — optimizar la configuración puede ayudar.",
+      ? "Cuello de botella severo — actualizar el CPU tendrá el mayor impacto."
+      : "Cuello de botella moderado — optimizar la configuración puede ayudar bastante.",
     `Sube la resolución a ${resolution === "1080p" ? "1440p" : "4K"} para que la GPU trabaje más.`,
     "Activa HAGS y Game Mode en Optimizaciones de Pine Opti.",
-    ...(upgrade ? [upgrade] : []),
-    "Cierra aplicaciones en segundo plano para liberar núcleos al juego.",
+    "Cierra apps en segundo plano para liberar núcleos al juego.",
   ];
   return [
     `La ${gpu.name} está limitando el ${cpu.name}.`,
     result.severity === "high"
-      ? "El cuello de botella es severo — una nueva GPU es la mejor inversión."
-      : "Cuello de botella moderado — baja ajustes gráficos para más FPS.",
+      ? "Cuello de botella severo — una nueva GPU es la mejor inversión."
+      : "Cuello de botella moderado — baja los ajustes gráficos para más FPS.",
     `Baja la resolución a ${resolution === "4K" ? "1440p" : "1080p"} para liberar la GPU.`,
-    "Activa ReBAR/SAM en BIOS si tu placa lo soporta.",
-    ...(upgrade ? [upgrade] : []),
+    "Activa ReBAR/SAM en BIOS si tu placa y GPU lo soportan.",
     "Baja sombras y distancia de render — son los más costosos en GPU.",
   ];
+}
+
+// Animated count-up hook
+function useCountUp(target, duration = 800) {
+  const [val, setVal] = useState(0);
+  const prev = useRef(0);
+  useEffect(() => {
+    if (target === prev.current) return;
+    const start = prev.current;
+    const diff = target - start;
+    const startTime = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setVal(Math.round(start + diff * eased));
+      if (t < 1) requestAnimationFrame(tick);
+      else prev.current = target;
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  return val;
 }
 
 export default function Bottleneck() {
@@ -275,6 +316,7 @@ export default function Bottleneck() {
   const [showCpuList, setShowCpuList] = useState(false);
   const [showGpuList, setShowGpuList] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [animate, setAnimate] = useState(false);
 
   const filteredCpus = CPUS.filter(c =>
     c.name.toLowerCase().includes(cpuQ.toLowerCase()) &&
@@ -287,6 +329,11 @@ export default function Bottleneck() {
 
   const result = selectedCpu && selectedGpu ? calcBottleneck(selectedCpu.score, selectedGpu.score, resolution) : null;
   const recs = result ? getRecs(result, selectedCpu, selectedGpu, resolution) : [];
+  const upgradeCard = result ? getUpgradeCard(result, selectedCpu, selectedGpu) : null;
+
+  useEffect(() => {
+    if (result) { setAnimate(false); requestAnimationFrame(() => setAnimate(true)); }
+  }, [selectedCpu, selectedGpu, resolution]);
 
   const severityColor = { low: "#14ff72", medium: "#ffaa00", high: "#ff4444" };
   const color = result ? severityColor[result.severity] : "#14ff72";
@@ -299,6 +346,10 @@ export default function Bottleneck() {
     entry:    { text: "rgba(255,255,255,0.45)", bg: "rgba(255,255,255,0.04)" },
     legacy:   { text: "rgba(255,255,255,0.25)", bg: "rgba(255,255,255,0.02)" },
   };
+
+  const animPct = useCountUp(animate && result ? result.pct : 0);
+  const animCpuUtil = useCountUp(animate && result ? result.cpuUtil : 0);
+  const animGpuUtil = useCountUp(animate && result ? result.gpuUtil : 0);
 
   const ItemRow = ({ item, onClick }) => {
     const tc = tierColor[item.tier] || tierColor.entry;
@@ -348,155 +399,229 @@ export default function Bottleneck() {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16 }}>
-        {/* Left */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Resolución */}
-          <div className="card" style={{ padding: "16px 18px" }}>
-            <div className="section-label" style={{ marginBottom: 12 }}>Resolución de juego</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["1080p", "1440p", "4K"].map(r => (
-                <button key={r} onClick={() => setResolution(r)} style={{ flex: 1, padding: "9px", borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: "pointer", background: resolution === r ? "rgba(20,255,114,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${resolution === r ? "rgba(20,255,114,0.4)" : "rgba(255,255,255,0.08)"}`, color: resolution === r ? "#14ff72" : "rgba(255,255,255,0.5)", transition: "all 0.12s" }}>{r}</button>
-              ))}
-            </div>
+      {/* ── Selector row ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        {/* CPU */}
+        <div className="card" style={{ padding: "14px 16px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+            <Cpu size={13} style={{ color: "#14ff72" }} />
+            <span className="section-label">CPU — {CPUS.length} modelos</span>
           </div>
-
-          {/* CPU */}
-          <div className="card" style={{ padding: "16px 18px", position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Cpu size={14} style={{ color: "#14ff72" }} />
-              <span className="section-label">Procesador (CPU) — {CPUS.length} modelos</span>
-            </div>
-            <div onClick={() => { setShowCpuList(!showCpuList); setShowGpuList(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
-              {selectedCpu ? (
-                <div>
-                  <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{selectedCpu.name}</div>
-                  <div style={{ fontSize: 9, color: tierColor[selectedCpu.tier]?.text || "#fff" }}>{tierLabel[selectedCpu.tier]}{selectedCpu.tag ? ` · ${selectedCpu.tag}` : ""}</div>
-                </div>
-              ) : <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>Busca o selecciona tu CPU...</span>}
-              <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.3)" }} />
-            </div>
-            {showCpuList && (
-              <div style={{ position: "absolute", left: 16, right: 16, top: "100%", marginTop: 4, zIndex: 50, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.5)" }}>
-                <div style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <input autoFocus value={cpuQ} onChange={e => setCpuQ(e.target.value)} placeholder="Buscar CPU (ej: i9, Ryzen 9, 9800X3D)..." style={{ width: "100%", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#fff", outline: "none", border: "none" }} />
-                </div>
-                <div style={{ maxHeight: 240, overflowY: "auto" }}>
-                  {filteredCpus.map(c => <ItemRow key={c.name} item={c} onClick={() => { setSelectedCpu(c); setShowCpuList(false); setCpuQ(""); }} />)}
-                  {filteredCpus.length === 0 && <div style={{ padding: "16px", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Sin resultados</div>}
-                </div>
+          <div onClick={() => { setShowCpuList(!showCpuList); setShowGpuList(false); }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: selectedCpu ? "rgba(20,255,114,0.06)" : "rgba(255,255,255,0.04)", borderRadius: 9, border: `1px solid ${selectedCpu ? "rgba(20,255,114,0.25)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer" }}>
+            {selectedCpu ? (
+              <div>
+                <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700 }}>{selectedCpu.name}</div>
+                <div style={{ fontSize: 9, color: tierColor[selectedCpu.tier]?.text }}>{tierLabel[selectedCpu.tier]}{selectedCpu.tag ? ` · ${selectedCpu.tag}` : ""} · Score {selectedCpu.score}</div>
               </div>
-            )}
+            ) : <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Selecciona tu CPU...</span>}
+            <ChevronDown size={13} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
           </div>
-
-          {/* GPU */}
-          <div className="card" style={{ padding: "16px 18px", position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Microchip size={14} style={{ color: "#00ccff" }} />
-              <span className="section-label">Tarjeta Gráfica (GPU) — {GPUS.length} modelos</span>
-            </div>
-            <div onClick={() => { setShowGpuList(!showGpuList); setShowCpuList(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
-              {selectedGpu ? (
-                <div>
-                  <div style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{selectedGpu.name}</div>
-                  <div style={{ fontSize: 9, color: tierColor[selectedGpu.tier]?.text || "#fff" }}>{tierLabel[selectedGpu.tier]}{selectedGpu.tag ? ` · ${selectedGpu.tag}` : ""}</div>
-                </div>
-              ) : <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>Busca o selecciona tu GPU...</span>}
-              <ChevronDown size={14} style={{ color: "rgba(255,255,255,0.3)" }} />
-            </div>
-            {showGpuList && (
-              <div style={{ position: "absolute", left: 16, right: 16, top: "100%", marginTop: 4, zIndex: 50, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.5)" }}>
-                <div style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <input autoFocus value={gpuQ} onChange={e => setGpuQ(e.target.value)} placeholder="Buscar GPU (ej: 5060 Ti, RTX 4090, RX 7900)..." style={{ width: "100%", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#fff", outline: "none", border: "none" }} />
-                </div>
-                <div style={{ maxHeight: 240, overflowY: "auto" }}>
-                  {filteredGpus.map(g => <ItemRow key={g.name} item={g} onClick={() => { setSelectedGpu(g); setShowGpuList(false); setGpuQ(""); }} />)}
-                  {filteredGpus.length === 0 && <div style={{ padding: "16px", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Sin resultados</div>}
-                </div>
+          {showCpuList && (
+            <div style={{ position: "absolute", left: 16, right: 16, top: "calc(100% - 4px)", zIndex: 50, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.6)" }}>
+              <div style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <input autoFocus value={cpuQ} onChange={e => setCpuQ(e.target.value)} placeholder="Buscar (ej: i9, Ryzen 9, 9800X3D)..." style={{ width: "100%", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#fff", outline: "none", border: "none" }} />
               </div>
-            )}
-          </div>
-
-          {/* Comparación visual si hay selección */}
-          {selectedCpu && selectedGpu && (
-            <div className="card" style={{ padding: "16px 18px" }}>
-              <div className="section-label" style={{ marginBottom: 12 }}>Comparación de rendimiento</div>
-              {[
-                { label: `CPU · ${selectedCpu.name}`, value: Math.min(100, selectedCpu.score), gradient: "linear-gradient(90deg,#14ff72,#00ccff)", note: `Score ${selectedCpu.score}` },
-                { label: `GPU · ${selectedGpu.name}`, value: Math.min(100, selectedGpu.score), gradient: "linear-gradient(90deg,#00ccff,#d926ff)", note: `Score ${selectedGpu.score}` },
-              ].map(bar => (
-                <div key={bar.label} style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 5 }}>
-                    <span style={{ color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "70%" }}>{bar.label}</span>
-                    <span style={{ fontFamily: "JetBrains Mono, monospace", color: "rgba(255,255,255,0.4)", flexShrink: 0 }}>{bar.note}</span>
-                  </div>
-                  <div style={{ height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${bar.value}%`, background: bar.gradient, borderRadius: 99, transition: "width 0.7s cubic-bezier(0.22,1,0.36,1)", boxShadow: "0 0 8px rgba(20,255,114,0.3)" }} />
-                  </div>
-                </div>
-              ))}
+              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                {filteredCpus.map(c => <ItemRow key={c.name} item={c} onClick={() => { setSelectedCpu(c); setShowCpuList(false); setCpuQ(""); }} />)}
+                {filteredCpus.length === 0 && <div style={{ padding: "16px", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Sin resultados</div>}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Resultado */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {result ? (
-            <>
-              <div className="card" style={{ padding: "20px", textAlign: "center", border: `1px solid ${color}30`, background: `${color}05` }}>
-                <div className="section-label" style={{ marginBottom: 16 }}>Resultado del análisis</div>
-                <div style={{ position: "relative", width: 120, height: 120, margin: "0 auto 16px" }}>
-                  <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="3" />
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3"
-                      strokeDasharray={`${result.pct} ${100 - result.pct}`} strokeLinecap="round"
-                      style={{ transition: "stroke-dasharray 0.6s ease", filter: `drop-shadow(0 0 5px ${color}70)` }} />
-                  </svg>
-                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: 26, fontWeight: 900, color, fontFamily: "JetBrains Mono, monospace", letterSpacing: "-0.04em", lineHeight: 1 }}>{result.pct}%</div>
-                    <div style={{ fontSize: 8, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.1em", marginTop: 4 }}>{result.type === "balanced" ? "Balanceado" : result.type}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color, marginBottom: 4 }}>
-                  {result.type === "balanced" ? "✅ Sin cuello de botella" : `⚠️ Cuello de botella: ${result.type}`}
-                </div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  {result.severity === "high" ? "Severo" : result.severity === "medium" ? "Moderado" : "Mínimo"}
-                </div>
+        {/* GPU */}
+        <div className="card" style={{ padding: "14px 16px", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+            <Microchip size={13} style={{ color: "#d926ff" }} />
+            <span className="section-label">GPU — {GPUS.length} modelos</span>
+          </div>
+          <div onClick={() => { setShowGpuList(!showGpuList); setShowCpuList(false); }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: selectedGpu ? "rgba(217,38,255,0.06)" : "rgba(255,255,255,0.04)", borderRadius: 9, border: `1px solid ${selectedGpu ? "rgba(217,38,255,0.25)" : "rgba(255,255,255,0.08)"}`, cursor: "pointer" }}>
+            {selectedGpu ? (
+              <div>
+                <div style={{ fontSize: 11.5, color: "#fff", fontWeight: 700 }}>{selectedGpu.name}</div>
+                <div style={{ fontSize: 9, color: tierColor[selectedGpu.tier]?.text }}>{tierLabel[selectedGpu.tier]}{selectedGpu.tag ? ` · ${selectedGpu.tag}` : ""} · Score {selectedGpu.score}</div>
               </div>
-
-              <div className="card" style={{ padding: "16px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                  <Zap size={12} style={{ color: "#14ff72" }} />
-                  <span className="section-label">Recomendaciones</span>
-                </div>
-                {recs.map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, marginBottom: 6 }}>
-                    <span style={{ color: "#14ff72", flexShrink: 0, marginTop: 1 }}>›</span> {r}
-                  </div>
-                ))}
+            ) : <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Selecciona tu GPU...</span>}
+            <ChevronDown size={13} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
+          </div>
+          {showGpuList && (
+            <div style={{ position: "absolute", left: 16, right: 16, top: "calc(100% - 4px)", zIndex: 50, background: "#0d1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, overflow: "hidden", boxShadow: "0 16px 40px rgba(0,0,0,0.6)" }}>
+              <div style={{ padding: "8px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <input autoFocus value={gpuQ} onChange={e => setGpuQ(e.target.value)} placeholder="Buscar (ej: RTX 4090, RX 9070, 5060 Ti)..." style={{ width: "100%", background: "rgba(255,255,255,0.05)", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#fff", outline: "none", border: "none" }} />
               </div>
-
-              <div className="card" style={{ padding: "14px 16px", background: "rgba(20,255,114,0.04)", border: "1px solid rgba(20,255,114,0.1)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Pine Opti puede mejorar</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: "#14ff72", letterSpacing: "-0.04em", fontFamily: "JetBrains Mono, monospace" }}>+5–15%</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>FPS extra con optimizaciones activas</div>
-              </div>
-            </>
-          ) : (
-            <div className="card" style={{ padding: "40px 20px", textAlign: "center", minHeight: 300, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-              <Cpu size={36} style={{ color: "rgba(255,255,255,0.1)", marginBottom: 12 }} />
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.6, marginBottom: 14 }}>
-                Selecciona tu CPU y GPU para ver el análisis de cuello de botella
-              </p>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.18)", lineHeight: 1.6 }}>
-                {CPUS.length} CPUs disponibles · {GPUS.length} GPUs disponibles<br />
-                Incluye RTX 50xx, RX 9000, Ryzen 9000, Core Ultra
+              <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                {filteredGpus.map(g => <ItemRow key={g.name} item={g} onClick={() => { setSelectedGpu(g); setShowGpuList(false); setGpuQ(""); }} />)}
+                {filteredGpus.length === 0 && <div style={{ padding: "16px", textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>Sin resultados</div>}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Resolution ── */}
+      <div className="card" style={{ padding: "12px 16px", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.14em", textTransform: "uppercase", flexShrink: 0 }}>Resolución</span>
+          <div style={{ display: "flex", gap: 6, flex: 1 }}>
+            {["1080p", "1440p", "4K"].map(r => (
+              <button key={r} onClick={() => setResolution(r)} style={{ flex: 1, padding: "7px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, cursor: "pointer", background: resolution === r ? "rgba(20,255,114,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${resolution === r ? "rgba(20,255,114,0.4)" : "rgba(255,255,255,0.07)"}`, color: resolution === r ? "#14ff72" : "rgba(255,255,255,0.4)", transition: "all 0.12s" }}>{r}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main analysis ── */}
+      {result ? (
+        <>
+          {/* ── Balance bar ── */}
+          <div className="card" style={{ padding: "18px 20px", marginBottom: 10, border: `1px solid ${color}22`, background: `linear-gradient(135deg,${color}04,transparent)` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#14ff72", letterSpacing: "0.1em", textTransform: "uppercase" }}>CPU</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: result.type === "CPU" ? "#ff4444" : "#14ff72", fontFamily: "JetBrains Mono, monospace", lineHeight: 1 }}>{animCpuUtil}%</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Utilización</div>
+              </div>
+              <div style={{ flex: 1, margin: "0 16px" }}>
+                <div style={{ textAlign: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color, letterSpacing: "0.04em" }}>
+                    {result.type === "balanced" ? "✅ BALANCEADO" : `⚠️ CUELLO: ${result.type}`}
+                  </span>
+                </div>
+                {/* Tug-of-war bar */}
+                <div style={{ position: "relative", height: 10, background: "rgba(255,255,255,0.05)", borderRadius: 99, overflow: "hidden" }}>
+                  <div style={{
+                    position: "absolute", left: 0, top: 0, height: "100%",
+                    width: `${animate ? result.cpuUtil : 0}%`,
+                    background: result.type === "CPU" ? "linear-gradient(90deg,#ff444499,#ff4444)" : "linear-gradient(90deg,#14ff7299,#14ff72)",
+                    borderRadius: "99px 0 0 99px",
+                    transition: "width 0.9s cubic-bezier(0.22,1,0.36,1)",
+                    boxShadow: result.type === "CPU" ? "0 0 10px #ff444488" : "0 0 10px #14ff7288",
+                  }} />
+                  <div style={{
+                    position: "absolute", right: 0, top: 0, height: "100%",
+                    width: `${animate ? result.gpuUtil : 0}%`,
+                    background: result.type === "GPU" ? "linear-gradient(270deg,#ff444499,#ff4444)" : "linear-gradient(270deg,#d926ff99,#d926ff)",
+                    borderRadius: "0 99px 99px 0",
+                    transition: "width 0.9s cubic-bezier(0.22,1,0.36,1)",
+                    boxShadow: result.type === "GPU" ? "0 0 10px #ff444488" : "0 0 10px #d926ff88",
+                  }} />
+                </div>
+                <div style={{ textAlign: "center", marginTop: 8 }}>
+                  <span style={{ fontSize: 28, fontWeight: 900, color, fontFamily: "JetBrains Mono, monospace", letterSpacing: "-0.05em" }}>{animPct}%</span>
+                  <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    {result.severity === "high" ? "severo" : result.severity === "medium" ? "moderado" : "mínimo"}
+                  </span>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#d926ff", letterSpacing: "0.1em", textTransform: "uppercase" }}>GPU</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: result.type === "GPU" ? "#ff4444" : "#d926ff", fontFamily: "JetBrains Mono, monospace", lineHeight: 1 }}>{animGpuUtil}%</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Utilización</div>
+              </div>
+            </div>
+
+            {/* CPU vs GPU score bars */}
+            {[
+              { label: selectedCpu.name, score: selectedCpu.score, color: result.type === "CPU" ? "#ff4444" : "#14ff72", grad: result.type === "CPU" ? "linear-gradient(90deg,#ff444470,#ff4444)" : "linear-gradient(90deg,#14ff7270,#14ff72)", icon: "CPU" },
+              { label: selectedGpu.name, score: selectedGpu.score, color: result.type === "GPU" ? "#ff4444" : "#d926ff", grad: result.type === "GPU" ? "linear-gradient(90deg,#ff444470,#ff4444)" : "linear-gradient(90deg,#d926ff70,#d926ff)", icon: "GPU" },
+            ].map((bar, i) => (
+              <div key={i} style={{ marginBottom: i === 0 ? 8 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginBottom: 4 }}>
+                  <span style={{ color: bar.color, fontWeight: 700, fontSize: 9, letterSpacing: "0.06em" }}>{bar.icon}</span>
+                  <span style={{ color: "rgba(255,255,255,0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "72%", textAlign: "right" }}>{bar.label}</span>
+                  <span style={{ color: bar.color, fontFamily: "JetBrains Mono, monospace", fontWeight: 700, flexShrink: 0 }}>{bar.score}</span>
+                </div>
+                <div style={{ height: 5, background: "rgba(255,255,255,0.05)", borderRadius: 99, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: animate ? `${Math.min(100, (bar.score / 120) * 100)}%` : "0%", background: bar.grad, borderRadius: 99, transition: "width 1s cubic-bezier(0.22,1,0.36,1) 0.1s", boxShadow: `0 0 6px ${bar.color}55` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── FPS estimator ── */}
+          <div className="card" style={{ padding: "16px 18px", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
+              <Gamepad2 size={13} style={{ color: "#14ff72" }} />
+              <span className="section-label">FPS estimados a {resolution}</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", marginLeft: "auto" }}>valores aproximados</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+              {GAME_FPS_BASE.map(game => {
+                const fps = estimateFPS(game, selectedCpu.score, selectedGpu.score, resolution);
+                const quality = fps >= 144 ? "#14ff72" : fps >= 60 ? "#ffaa00" : "#ff4444";
+                const label = fps >= 144 ? "144+" : fps >= 60 ? "smooth" : "bajo";
+                return (
+                  <div key={game.name} style={{ padding: "10px 8px", borderRadius: 9, background: "rgba(255,255,255,0.025)", border: `1px solid rgba(255,255,255,0.06)`, textAlign: "center", transition: "all 0.2s" }}>
+                    <div style={{ fontSize: 16, marginBottom: 4 }}>{game.icon}</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: quality, fontFamily: "JetBrains Mono, monospace", lineHeight: 1, letterSpacing: "-0.04em" }}>
+                      {fps}
+                    </div>
+                    <div style={{ fontSize: 8, color: quality, fontWeight: 700, letterSpacing: "0.06em", marginTop: 2, textTransform: "uppercase" }}>{label}</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)", marginTop: 3, lineHeight: 1.3 }}>{game.name}</div>
+                  </div>
+                );
+              })}
+              {/* Pine Opti boost card */}
+              <div style={{ padding: "10px 8px", borderRadius: 9, background: "rgba(20,255,114,0.05)", border: "1px solid rgba(20,255,114,0.15)", textAlign: "center" }}>
+                <div style={{ fontSize: 16, marginBottom: 4 }}>⚡</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "#14ff72", fontFamily: "JetBrains Mono, monospace", lineHeight: 1, letterSpacing: "-0.04em" }}>+15%</div>
+                <div style={{ fontSize: 8, color: "#14ff72", fontWeight: 700, letterSpacing: "0.06em", marginTop: 2, textTransform: "uppercase" }}>con Pine</div>
+                <div style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)", marginTop: 3, lineHeight: 1.3 }}>Optimizaciones</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: upgradeCard ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 0 }}>
+            {/* Upgrade path */}
+            {upgradeCard && (
+              <div className="card" style={{ padding: "16px 18px", background: `rgba(${upgradeCard.component === "CPU" ? "20,255,114" : "217,38,255"},0.04)`, border: `1px solid rgba(${upgradeCard.component === "CPU" ? "20,255,114" : "217,38,255"},0.18)` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <TrendingUp size={13} style={{ color: upgradeCard.component === "CPU" ? "#14ff72" : "#d926ff" }} />
+                  <span className="section-label">Upgrade recomendado</span>
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  {upgradeCard.component} actual
+                </div>
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", marginBottom: 8, lineHeight: 1.4, wordBreak: "break-word" }}>{upgradeCard.current}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                  <ArrowRight size={11} style={{ color: upgradeCard.component === "CPU" ? "#14ff72" : "#d926ff", flexShrink: 0 }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", lineHeight: 1.4, wordBreak: "break-word" }}>{upgradeCard.upgrade}</div>
+                </div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 6, background: upgradeCard.component === "CPU" ? "rgba(20,255,114,0.1)" : "rgba(217,38,255,0.1)", border: `1px solid rgba(${upgradeCard.component === "CPU" ? "20,255,114" : "217,38,255"},0.25)` }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: upgradeCard.component === "CPU" ? "#14ff72" : "#d926ff", fontFamily: "JetBrains Mono, monospace" }}>+{upgradeCard.gain}%</span>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}>FPS estimado</span>
+                </div>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            <div className="card" style={{ padding: "16px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <Zap size={12} style={{ color: "#14ff72" }} />
+                <span className="section-label">Recomendaciones</span>
+              </div>
+              {recs.map((r, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", fontSize: 10.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.55, marginBottom: 5 }}>
+                  <span style={{ color: "#14ff72", flexShrink: 0, marginTop: 1, fontSize: 12 }}>›</span>{r}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="card" style={{ padding: "60px 20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.15 }}>⚖️</div>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.7, marginBottom: 10 }}>
+            Selecciona tu <strong style={{ color: "#14ff72" }}>CPU</strong> y <strong style={{ color: "#d926ff" }}>GPU</strong> para ver el análisis completo
+          </p>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.15)", lineHeight: 1.8 }}>
+            {CPUS.length} CPUs · {GPUS.length} GPUs · Estimación de FPS por juego · Upgrade path<br />
+            RTX 50xx · RX 9000 · Ryzen 9000 · Core Ultra 200
+          </div>
+        </div>
+      )}
     </div>
   );
 }
