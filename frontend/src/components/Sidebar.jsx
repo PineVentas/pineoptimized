@@ -13,7 +13,7 @@ function readLS(key, fallback) {
 }
 
 function calcOptScore() {
-  const tweaks = readLS("pine_tweaks", {});
+  const tweaks = readLS("pine_tweak_values", {});
   const enabled = Object.values(tweaks).filter(v => v === "on").length;
   const dns = readLS("pine_dns_choice", null);
   const torneo = readLS("pine_torneo_history", []);

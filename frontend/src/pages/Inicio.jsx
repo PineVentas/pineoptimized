@@ -10,7 +10,7 @@ function readLS(key, fallback) {
 }
 
 function calcGamingScore() {
-  const tweaks = readLS("pine_tweaks", {});
+  const tweaks = readLS("pine_tweak_values", {});
   const enabledTweaks = Object.values(tweaks).filter(v => v === "on").length;
   const dns = readLS("pine_dns_choice", null);
   const torneo = readLS("pine_torneo_history", []);
@@ -107,7 +107,7 @@ export default function Inicio() {
   const [gamingScore, setGamingScore] = useState(0);
 
   const sessionStats = useMemo(() => {
-    const tweaks = readLS("pine_tweaks", {});
+    const tweaks = readLS("pine_tweak_values", {});
     const enabledCount = Object.values(tweaks).filter(v => v === "on").length;
     const dns = readLS("pine_dns_choice", null);
     const torneo = readLS("pine_torneo_history", []);
