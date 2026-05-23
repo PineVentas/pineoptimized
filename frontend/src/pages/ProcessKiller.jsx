@@ -125,7 +125,7 @@ export default function ProcessKiller() {
         if (r.ok && r.processes.length > 0) setProcs(buildProcessList(r.processes));
       } else {
         const r = await api.get("/processes");
-        setProcs(r.data.processes);
+        setProcs(buildProcessList(r.data.processes));
       }
     } catch {
       toast.error("Error al cargar procesos");
@@ -177,6 +177,7 @@ export default function ProcessKiller() {
         toast.success(`${r.data.killed.length} procesos cerrados · ${r.data.ram_freed_mb}MB liberados`);
         if (r.data.skipped_critical?.length) toast.warning(`${r.data.skipped_critical.length} procesos críticos protegidos`);
         setSelected(new Set());
+        setTimeout(load, 1200);
       }
     } catch {
       toast.error("Error al cerrar procesos");

@@ -91,24 +91,23 @@ export default function Correcciones() {
   const isElectron = !!(window.electronAPI?.runFix);
 
   const runFix = async (fix) => {
-    if (!isElectron) {
-      toast.info("Esta función requiere la app de escritorio (.exe)");
-      return;
-    }
     setRunning(r => ({ ...r, [fix.id]: true }));
     setDone(d => ({ ...d, [fix.id]: false }));
     setSteps(s => ({ ...s, [fix.id]: 0 }));
 
-    const stepDelay = 600;
+    const stepDelay = isElectron ? 600 : 750;
     for (let i = 0; i < fix.steps.length; i++) {
       await new Promise(r => setTimeout(r, stepDelay));
       setSteps(s => ({ ...s, [fix.id]: i + 1 }));
     }
 
     try {
-      await window.electronAPI.runFix(fix.id);
+      if (isElectron) {
+        await window.electronAPI.runFix(fix.id);
+      }
       setDone(d => ({ ...d, [fix.id]: true }));
       toast.success(`✅ ${fix.title} completado`);
+      if (!isElectron) toast.info("Usa Pine Opti.exe como Admin para aplicar al sistema real");
     } catch (e) {
       toast.error(`Error: ${e?.message || 'desconocido'}`);
     } finally {

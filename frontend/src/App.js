@@ -178,8 +178,44 @@ const NAV_SHORTCUTS = [
   "/juegos", "/limpieza", "/sensibilidad", "/power-plan", "/configuracion",
 ];
 
+const THEME_COLORS = {
+  green:   { color: "#14ff72", glow: "rgba(20,255,114,0.4)" },
+  cyan:    { color: "#00ccff", glow: "rgba(0,204,255,0.4)" },
+  magenta: { color: "#d926ff", glow: "rgba(217,38,255,0.4)" },
+  amber:   { color: "#ffaa00", glow: "rgba(255,170,0,0.4)" },
+  red:     { color: "#ff4444", glow: "rgba(255,68,68,0.4)" },
+  orange:  { color: "#ff6b35", glow: "rgba(255,107,53,0.4)" },
+  blue:    { color: "#4d79ff", glow: "rgba(77,121,255,0.4)" },
+  white:   { color: "#e8e8e8", glow: "rgba(232,232,232,0.3)" },
+};
+
+function applyThemeVars(id) {
+  const t = THEME_COLORS[id] || THEME_COLORS.green;
+  document.documentElement.style.setProperty('--accent', t.color);
+  document.documentElement.style.setProperty('--accent-glow', t.glow);
+  document.documentElement.style.setProperty('--accent-dim', `${t.color}14`);
+  document.documentElement.style.setProperty('--accent-border', `${t.color}33`);
+}
+
 function Shell() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("pine_theme");
+      applyThemeVars(saved || "green");
+    } catch {}
+    const onThemeChange = (e) => {
+      if (e.detail?.color) {
+        document.documentElement.style.setProperty('--accent', e.detail.color);
+        document.documentElement.style.setProperty('--accent-glow', e.detail.glow || 'rgba(20,255,114,0.4)');
+        document.documentElement.style.setProperty('--accent-dim', `${e.detail.color}14`);
+        document.documentElement.style.setProperty('--accent-border', `${e.detail.color}33`);
+      }
+    };
+    window.addEventListener('pine-theme-change', onThemeChange);
+    return () => window.removeEventListener('pine-theme-change', onThemeChange);
+  }, []);
 
   const handleKey = useCallback((e) => {
     if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {

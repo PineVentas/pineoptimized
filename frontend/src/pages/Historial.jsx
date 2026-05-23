@@ -52,8 +52,10 @@ export default function Historial() {
 
   useEffect(() => {
     try {
+      const extra = [];
+
       const torneos = JSON.parse(localStorage.getItem("pine_torneo_history") || "[]");
-      const extra = torneos.map((t, i) => ({
+      torneos.forEach((t, i) => extra.push({
         id: `torneo-${i}`,
         type: "Modo Torneo",
         color: "#ffd166",
@@ -62,11 +64,23 @@ export default function Historial() {
         detail: `${t.steps} tweaks aplicados`,
         ts: t.ts || Date.now() - i * 3600000,
       }));
+
+      const opts = JSON.parse(localStorage.getItem("pine_applied_tweaks") || "[]");
+      opts.forEach(e => extra.push(e));
+
+      const dns = localStorage.getItem("pine_dns_choice");
+      if (dns) {
+        try {
+          const d = JSON.parse(dns);
+          extra.push({ id: "dns-last", type: "DNS Gaming", color: "#00ccff", icon: "🌐", desc: `${d.name || dns} configurado`, detail: `Primary: ${d.primary || "—"}`, ts: d.ts || Date.now() - 86400000 });
+        } catch {}
+      }
+
       if (extra.length > 0) {
         setLog(prev => {
-          const existing = new Set(prev.map(e => e.desc));
-          const newOnes = extra.filter(e => !existing.has(e.desc));
-          return [...newOnes, ...prev].sort((a, b) => b.ts - a.ts);
+          const existingIds = new Set(prev.map(e => e.id));
+          const newOnes = extra.filter(e => !existingIds.has(e.id));
+          return [...newOnes, ...prev].sort((a, b) => b.ts - a.ts).slice(0, 100);
         });
       }
     } catch {}

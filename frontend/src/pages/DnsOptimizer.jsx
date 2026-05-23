@@ -50,19 +50,20 @@ export default function DnsOptimizer() {
   };
 
   const apply = async (srv) => {
-    if (!isElectron) {
-      toast.info("Aplicar DNS requiere la app de escritorio (.exe)");
-      return;
-    }
     setApplying(srv.id);
     try {
-      const r = await window.electronAPI.applyDns(srv.primary, srv.secondary);
-      if (r?.ok) {
-        setCurrent(srv.id);
-        toast.success(`✅ DNS cambiado a ${srv.name}`);
-      } else {
-        toast.error("Error aplicando DNS");
+      if (isElectron) {
+        const r = await window.electronAPI.applyDns(srv.primary, srv.secondary);
+        if (!r?.ok) { toast.error("Error aplicando DNS"); return; }
       }
+      setCurrent(srv.id);
+      try {
+        localStorage.setItem("pine_dns_choice", JSON.stringify({
+          id: srv.id, name: srv.name, primary: srv.primary, secondary: srv.secondary, ts: Date.now(),
+        }));
+      } catch {}
+      toast.success(`✅ DNS configurado: ${srv.name} (${srv.primary})`);
+      if (!isElectron) toast.info("Copia los IPs y aplícalos en Configuración > Red > DNS de Windows");
     } catch { toast.error("Error aplicando DNS"); }
     finally  { setApplying(null); }
   };

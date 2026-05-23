@@ -106,7 +106,15 @@ export default function Configuracion() {
   const applyTheme = async (id) => {
     setActiveTheme(id); setLS("pine_theme", id);
     save({ ...s, theme: id });
-    try { await api.post("/theme", { theme: id }); toast.success(`Tema aplicado: ${THEMES.find(t=>t.id===id)?.name}`); } catch {}
+    const theme = THEMES.find(t => t.id === id);
+    if (theme) {
+      document.documentElement.style.setProperty('--accent', theme.color);
+      document.documentElement.style.setProperty('--accent-glow', theme.glow);
+      document.documentElement.style.setProperty('--accent-dim', `${theme.color}14`);
+      document.documentElement.style.setProperty('--accent-border', `${theme.color}33`);
+      window.dispatchEvent(new CustomEvent('pine-theme-change', { detail: theme }));
+    }
+    try { await api.post("/theme", { theme: id }); toast.success(`🎨 Tema aplicado: ${theme?.name}`); } catch {}
   };
 
   return (

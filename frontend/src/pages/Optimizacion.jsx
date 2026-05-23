@@ -190,6 +190,20 @@ export default function Optimizacion() {
       toast.success(`✅ ${on.length} tweaks configurados — ${highImpactEnabled} de alto impacto`);
       toast.info("Para aplicar al registry de Windows, usa Pine Opti.exe como Admin");
     }
+    try {
+      const on = TWEAKS.filter(t => values[t.id] === "on");
+      const entry = {
+        id: `opt-${Date.now()}`,
+        type: "Optimizaciones",
+        color: "#14ff72",
+        icon: "⚙️",
+        desc: `${on.length} tweaks aplicados — ${highImpactEnabled} de alto impacto`,
+        detail: [...new Set(on.map(t => t.category))].join(", "),
+        ts: Date.now(),
+      };
+      const prev = JSON.parse(localStorage.getItem("pine_applied_tweaks") || "[]");
+      localStorage.setItem("pine_applied_tweaks", JSON.stringify([entry, ...prev].slice(0, 50)));
+    } catch {}
     setApplying(false);
   };
 

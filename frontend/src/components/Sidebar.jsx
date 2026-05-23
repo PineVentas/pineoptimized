@@ -144,9 +144,9 @@ export default function Sidebar() {
                       background: isActive
                         ? 'linear-gradient(90deg, rgba(20,255,114,0.13) 0%, rgba(20,255,114,0.04) 100%)'
                         : 'transparent',
-                      color: isActive ? '#14ff72' : 'rgba(255,255,255,0.4)',
+                      color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
                       position: 'relative', outline: 'none',
-                      borderLeft: isActive ? '2px solid #14ff72' : '2px solid transparent',
+                      borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
                     }}
                     onMouseEnter={e => {
                       if (!isActive) {

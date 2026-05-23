@@ -281,10 +281,28 @@ DNS_PRESETS = [
 ]
 
 BLOAT_PROCESSES = [
-    {"name": "OneDrive.exe", "ram_mb": 180, "category": "cloud", "safe_to_kill": True, "reason": "Sincronización en background"},
-    {"name": "Cortana.exe", "ram_mb": 95, "category": "windows", "safe_to_kill": True, "reason": "Asistente Windows"},
-    {"name": "Teams.exe", "ram_mb": 320, "category": "chat", "safe_to_kill": True, "reason": "Cliente de chat"},
-    {"name": "msedge.exe", "ram_mb": 410, "category": "browser", "safe_to_kill": True, "reason": "Edge no usado en gaming"},
+    {"name": "OneDrive.exe",           "ram_mb": 180, "category": "cloud",    "safe_to_kill": True,  "is_anticheat": False, "reason": "Sincronización en background"},
+    {"name": "Cortana.exe",            "ram_mb": 95,  "category": "windows",  "safe_to_kill": True,  "is_anticheat": False, "reason": "Asistente Windows"},
+    {"name": "Teams.exe",              "ram_mb": 320, "category": "chat",     "safe_to_kill": True,  "is_anticheat": False, "reason": "Cliente de chat"},
+    {"name": "msedge.exe",             "ram_mb": 410, "category": "browser",  "safe_to_kill": True,  "is_anticheat": False, "reason": "Edge en background"},
+    {"name": "Spotify.exe",            "ram_mb": 260, "category": "media",    "safe_to_kill": True,  "is_anticheat": False, "reason": "Streaming de música"},
+    {"name": "Discord.exe",            "ram_mb": 280, "category": "chat",     "safe_to_kill": True,  "is_anticheat": False, "reason": "Chat en background"},
+    {"name": "EpicGamesLauncher.exe",  "ram_mb": 210, "category": "gaming",   "safe_to_kill": True,  "is_anticheat": False, "reason": "Launcher — cierra antes de jugar Steam"},
+    {"name": "GoogleDriveSync.exe",    "ram_mb": 140, "category": "cloud",    "safe_to_kill": True,  "is_anticheat": False, "reason": "Sync Google Drive en background"},
+    {"name": "Dropbox.exe",            "ram_mb": 155, "category": "cloud",    "safe_to_kill": True,  "is_anticheat": False, "reason": "Sync Dropbox en background"},
+    {"name": "SearchApp.exe",          "ram_mb": 88,  "category": "windows",  "safe_to_kill": True,  "is_anticheat": False, "reason": "Búsqueda Windows en background"},
+    {"name": "WidgetService.exe",      "ram_mb": 72,  "category": "windows",  "safe_to_kill": True,  "is_anticheat": False, "reason": "Widgets Windows 11"},
+    {"name": "XboxGameBarWidgets.exe", "ram_mb": 110, "category": "gaming",   "safe_to_kill": True,  "is_anticheat": False, "reason": "Xbox Game Bar — consume CPU en gaming"},
+    {"name": "TelegramDesktop.exe",    "ram_mb": 130, "category": "chat",     "safe_to_kill": True,  "is_anticheat": False, "reason": "Telegram en background"},
+    {"name": "Slack.exe",              "ram_mb": 340, "category": "chat",     "safe_to_kill": True,  "is_anticheat": False, "reason": "Slack en background"},
+    {"name": "chrome.exe",             "ram_mb": 580, "category": "browser",  "safe_to_kill": True,  "is_anticheat": False, "reason": "Chrome consume RAM en background"},
+    {"name": "acrocef_1.exe",          "ram_mb": 65,  "category": "adobe",    "safe_to_kill": True,  "is_anticheat": False, "reason": "Adobe Acrobat en background"},
+    {"name": "Zoom.exe",               "ram_mb": 195, "category": "chat",     "safe_to_kill": True,  "is_anticheat": False, "reason": "Zoom en background"},
+    {"name": "WmiPrvSE.exe",           "ram_mb": 48,  "category": "system",   "safe_to_kill": False, "is_anticheat": False, "reason": "Proveedor WMI del sistema"},
+    {"name": "vgc.exe",                "ram_mb": 22,  "category": "anticheat","safe_to_kill": False, "is_anticheat": True,  "reason": "Vanguard anti-cheat (Valorant)"},
+    {"name": "BEService.exe",          "ram_mb": 18,  "category": "anticheat","safe_to_kill": False, "is_anticheat": True,  "reason": "BattlEye anti-cheat (PUBG/R6)"},
+    {"name": "EasyAntiCheat.exe",      "ram_mb": 15,  "category": "anticheat","safe_to_kill": False, "is_anticheat": True,  "reason": "EAC anti-cheat (Fortnite/Apex)"},
+    {"name": "PnkBstrA.exe",           "ram_mb": 12,  "category": "anticheat","safe_to_kill": False, "is_anticheat": True,  "reason": "PunkBuster anti-cheat"},
 ]
 
 ACHIEVEMENTS = [
@@ -370,11 +388,24 @@ async def apply_dns(dns_id: str):
 
 @api_router.get("/processes")
 async def list_processes():
-    return {"processes": [{**p, "cpu_pct": random.randint(1, 5)} for p in BLOAT_PROCESSES]}
+    result = []
+    for p in BLOAT_PROCESSES:
+        variance = random.randint(-20, 40)
+        result.append({
+            **p,
+            "cpu_pct": round(random.uniform(0.1, 4.5), 1),
+            "ram_mb": max(8, p["ram_mb"] + variance),
+        })
+    return {"processes": result}
 
 @api_router.post("/processes/kill")
 async def kill_processes(data: Dict[str, Any]):
-    return {"killed": data.get("names", []), "ram_freed_mb": 500, "skipped_critical": []}
+    names = data.get("names", [])
+    name_set = set(names)
+    ram_freed = sum(p["ram_mb"] for p in BLOAT_PROCESSES if p["name"] in name_set)
+    anticheat_skipped = [p["name"] for p in BLOAT_PROCESSES if p["name"] in name_set and p.get("is_anticheat")]
+    actually_killed = [n for n in names if n not in set(anticheat_skipped)]
+    return {"killed": actually_killed, "ram_freed_mb": ram_freed, "skipped_critical": anticheat_skipped}
 
 @api_router.get("/achievements")
 async def list_achievements():

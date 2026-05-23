@@ -26,6 +26,10 @@
     --easing-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
     --easing-out:     cubic-bezier(0.16, 1, 0.3, 1);
     --easing-inout:   cubic-bezier(0.65, 0, 0.35, 1);
+    --accent:       #14ff72;
+    --accent-glow:  rgba(20,255,114,0.4);
+    --accent-dim:   rgba(20,255,114,0.08);
+    --accent-border: rgba(20,255,114,0.2);
   }
 }
 
