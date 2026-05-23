@@ -20,7 +20,7 @@ function calcGamingScore() {
   const killHistory = readLS("pine_applied_tweaks", []);
 
   let score = 0;
-  score += Math.min(40, Math.round((enabledTweaks / 60) * 40));
+  score += Math.min(40, Math.round((enabledTweaks / 400) * 40));
   if (dns) score += 15;
   if (powerPlan === "performance" || powerPlan === "ultimate") score += 15;
   score += Math.min(15, torneo.length * 3);

@@ -19,7 +19,7 @@ function calcOptScore() {
   const torneo = readLS("pine_torneo_history", []);
   const power = localStorage.getItem("pine_power_plan");
   let s = 0;
-  s += Math.min(40, Math.round((enabled / 60) * 40));
+  s += Math.min(40, Math.round((enabled / 400) * 40));
   if (dns) s += 15;
   if (power === "performance" || power === "ultimate") s += 15;
   s += Math.min(15, torneo.length * 3);

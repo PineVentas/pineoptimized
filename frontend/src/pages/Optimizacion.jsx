@@ -99,7 +99,7 @@ const SUBNAV = [
 const PRESETS = [
   { id: "basico",   label: "Básico",   desc: "9 tweaks seguros",  color: "#00ccff", tweaks: PRESET_BASICO   },
   { id: "optimo",   label: "Óptimo",   desc: `${PRESET_OPTIMO.length} tweaks recomendados`, color: "#14ff72", tweaks: PRESET_OPTIMO   },
-  { id: "avanzado", label: "Avanzado", desc: `${PRESET_AVANZADO.length} tweaks completos`, color: "#d926ff", tweaks: PRESET_AVANZADO },
+  { id: "avanzado", label: "Avanzado", desc: `${PRESET_AVANZADO.length} tweaks`, color: "#d926ff", tweaks: PRESET_AVANZADO },
 ];
 
 export default function Optimizacion() {
