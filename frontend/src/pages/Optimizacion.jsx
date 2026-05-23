@@ -6,7 +6,8 @@ import {
   Component, Archive, User, Check, Rocket, ChevronRight, Flame,
   MemoryStick, HardDrive, MonitorCog, AlertTriangle, Mouse, Monitor,
   Volume2, MessageCircle, Shield, Layers, Laptop, Package,
-  Radio, Trophy, TrendingUp, Smartphone,
+  Radio, Trophy, TrendingUp, Smartphone, Gamepad2, Thermometer,
+  Database, RefreshCw, Globe, Maximize2, Download, Lightbulb,
 } from "lucide-react";
 import { TWEAKS, PRESET_BASICO, PRESET_OPTIMO, PRESET_AVANZADO } from "../lib/tweaks";
 
@@ -84,6 +85,15 @@ const SUBNAV = [
   { id: "competitivo",            label: "Competitivo",        icon: Trophy,      color: "#ffd700"   },
   { id: "overclock",              label: "Overclock / OC",     icon: TrendingUp,  color: "#ff6b35"   },
   { id: "emuladores",             label: "Emuladores",         icon: Smartphone,  color: "#14ff72"   },
+  { id: "juegos",                 label: "Juegos Específicos", icon: Gamepad2,    color: "#00ccff"   },
+  { id: "temperatura",            label: "Temperatura",        icon: Thermometer, color: "#ff4444"   },
+  { id: "ssd",                    label: "SSD / Disco",        icon: Database,    color: "#a29bfe"   },
+  { id: "virtual-mem",            label: "Memoria Virtual",    icon: MemoryStick, color: "#74b9ff"   },
+  { id: "windows-update",         label: "Windows Update",     icon: RefreshCw,   color: "#00b4d8"   },
+  { id: "latencia",               label: "Latencia de Red",    icon: Globe,       color: "#26d0ce"   },
+  { id: "resolucion",             label: "Resolución/Escala",  icon: Maximize2,   color: "#d926ff"   },
+  { id: "drivers",                label: "Drivers",            icon: Download,    color: "#ffd166"   },
+  { id: "rgb",                    label: "RGB / Periféricos",  icon: Lightbulb,   color: "#ff9ff3"   },
 ];
 
 const PRESETS = [
