@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe, Zap, Shield, Clock, CheckCircle2, Play, RefreshCw } from "lucide-react";
+import { Globe, Zap, Shield, Clock, CheckCircle2, Play, RefreshCw, Copy, Check as CheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 const DNS_SERVERS = [
@@ -26,10 +26,20 @@ async function testDns(doh) {
 
 export default function DnsOptimizer() {
   const [benchmarks, setBenchmarks] = useState({});
-  const [current, setCurrent]       = useState(null);
+  const [current, setCurrent]       = useState(() => {
+    try { const d = JSON.parse(localStorage.getItem("pine_dns_choice") || "null"); return d?.id || null; } catch { return null; }
+  });
   const [applying, setApplying]     = useState(null);
   const [testing, setTesting]       = useState(false);
+  const [copied, setCopied]         = useState(null);
   const isElectron = !!(window.electronAPI?.applyDns);
+
+  const copyIp = (ip) => {
+    navigator.clipboard.writeText(ip).then(() => {
+      setCopied(ip);
+      setTimeout(() => setCopied(null), 1500);
+    }).catch(() => {});
+  };
 
   const runBenchmark = async () => {
     setTesting(true);
@@ -190,9 +200,26 @@ export default function DnsOptimizer() {
 
               <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 12, lineHeight: 1.55 }}>{srv.desc}</p>
 
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                {[srv.primary, srv.secondary].map(ip => (
-                  <code key={ip} style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 5, padding: '3px 8px', fontFamily: 'JetBrains Mono, monospace' }}>{ip}</code>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+                {[srv.primary, srv.secondary].map((ip, i) => (
+                  <button
+                    key={ip}
+                    onClick={() => copyIp(ip)}
+                    title={copied === ip ? "¡Copiado!" : `Copiar ${i === 0 ? 'primario' : 'secundario'}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                      fontSize: 10, color: copied === ip ? '#14ff72' : 'rgba(255,255,255,0.5)',
+                      background: copied === ip ? 'rgba(20,255,114,0.08)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${copied === ip ? 'rgba(20,255,114,0.25)' : 'rgba(255,255,255,0.07)'}`,
+                      borderRadius: 5, padding: '3px 8px', fontFamily: 'JetBrains Mono, monospace',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {ip}
+                    {copied === ip
+                      ? <CheckIcon size={9} style={{ color: '#14ff72', flexShrink: 0 }} />
+                      : <Copy size={9} style={{ opacity: 0.4, flexShrink: 0 }} />}
+                  </button>
                 ))}
               </div>
 

@@ -1,3 +1,4 @@
+import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Home, Gauge, Wrench, Sparkles, CloudUpload, Wand2,
@@ -6,6 +7,47 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
+
+function readLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+
+function calcOptScore() {
+  const tweaks = readLS("pine_tweaks", {});
+  const enabled = Object.values(tweaks).filter(v => v === "on").length;
+  const dns = readLS("pine_dns_choice", null);
+  const torneo = readLS("pine_torneo_history", []);
+  const power = localStorage.getItem("pine_power_plan");
+  let s = 0;
+  s += Math.min(40, Math.round((enabled / 60) * 40));
+  if (dns) s += 15;
+  if (power === "performance" || power === "ultimate") s += 15;
+  s += Math.min(15, torneo.length * 3);
+  return Math.min(100, s);
+}
+
+function SidebarOptBar() {
+  const [score, setScore] = React.useState(0);
+  React.useEffect(() => { setScore(calcOptScore()); }, []);
+  const color = score >= 80 ? '#14ff72' : score >= 50 ? '#ffd166' : '#ff6b6b';
+  return (
+    <div style={{ padding: '8px 12px 6px', borderTop: '1px solid rgba(255,255,255,0.04)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+        <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Gaming Score</span>
+        <span style={{ fontSize: 10, fontWeight: 800, color, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.03em' }}>{score}</span>
+      </div>
+      <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 99,
+          width: `${score}%`,
+          background: `linear-gradient(90deg, ${color}aa, ${color})`,
+          boxShadow: `0 0 6px ${color}60`,
+          transition: 'width 1s cubic-bezier(0.22,1,0.36,1)',
+        }} />
+      </div>
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const { user }    = useAuth();
@@ -204,6 +246,9 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* ── Optimization progress bar ── */}
+      <SidebarOptBar />
 
       {/* ── User footer ── */}
       <div style={{ padding: '10px 10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>

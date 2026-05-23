@@ -97,6 +97,7 @@ export default function ProcessKiller() {
   const [loading, setLoading] = useState(false);
   const [killing, setKilling] = useState(false);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const isElectron = !!(window.electronAPI && window.electronAPI.getProcesses);
 
   const buildProcessList = (rawList) => {
@@ -186,11 +187,12 @@ export default function ProcessKiller() {
     }
   };
 
-  const filtered = filter === "safe"
-    ? procs.filter(p => p.safe_to_kill)
-    : filter === "anticheat"
-      ? procs.filter(p => p.is_anticheat)
-      : procs;
+  const filtered = procs
+    .filter(p =>
+      filter === "safe" ? p.safe_to_kill :
+      filter === "anticheat" ? p.is_anticheat : true
+    )
+    .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()));
 
   const totalRam = procs.reduce((s, p) => s + p.ram_mb, 0);
   const selectedRam = procs.filter(p => selected.has(p.name)).reduce((s, p) => s + p.ram_mb, 0);
@@ -241,13 +243,27 @@ export default function ProcessKiller() {
         ))}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2 mb-4">
+      {/* Actions + Search */}
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button onClick={selectAllSafe} className="btn-primary text-xs flex items-center gap-1.5">
           <Zap size={12} /> Seleccionar seguros
         </button>
         <button onClick={() => setSelected(new Set())} className="btn-ghost text-xs">Limpiar</button>
-        <div className="flex-1" />
+        <div style={{ flex: 1, minWidth: 140 }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar proceso..."
+            style={{
+              width: '100%', height: '100%', minHeight: 32,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8, color: 'rgba(255,255,255,0.7)', fontSize: 11, padding: '0 12px',
+              outline: 'none', fontFamily: 'JetBrains Mono, monospace',
+            }}
+            onFocus={e => { e.target.style.borderColor = 'rgba(20,255,114,0.35)'; e.target.style.boxShadow = '0 0 0 2px rgba(20,255,114,0.08)'; }}
+            onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+          />
+        </div>
         <select
           value={filter}
           onChange={e => setFilter(e.target.value)}

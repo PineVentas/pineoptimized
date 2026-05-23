@@ -1,15 +1,65 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { api } from "../lib/api";
 import { useRealFPS } from "../hooks/useRealFPS";
-import { Cpu, Microchip, MemoryStick, HardDrive, Rocket, Zap, Sparkles, X, ShoppingBag, ChevronRight, Trash2, Target, Power, Activity } from "lucide-react";
+import { Cpu, Microchip, MemoryStick, HardDrive, Rocket, Zap, Sparkles, X, ShoppingBag, ChevronRight, Trash2, Target, Power, Activity, Skull, Globe, Trophy, TrendingUp } from "lucide-react";
+
+function readLS(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+
+function calcGamingScore() {
+  const tweaks = readLS("pine_tweaks", {});
+  const enabledTweaks = Object.values(tweaks).filter(v => v === "on").length;
+  const dns = readLS("pine_dns_choice", null);
+  const torneo = readLS("pine_torneo_history", []);
+  const powerPlan = localStorage.getItem("pine_power_plan");
+  const profiles = readLS("pine_game_profiles", {});
+  const activeProfiles = Object.values(profiles).filter(Boolean).length;
+  const killHistory = readLS("pine_applied_tweaks", []);
+
+  let score = 0;
+  score += Math.min(40, Math.round((enabledTweaks / 60) * 40));
+  if (dns) score += 15;
+  if (powerPlan === "performance" || powerPlan === "ultimate") score += 15;
+  score += Math.min(15, torneo.length * 3);
+  score += Math.min(10, activeProfiles * 2);
+  score += Math.min(5, killHistory.length);
+  return Math.min(100, score);
+}
 import HardwareWidget from "../components/HardwareWidget";
 import ScanModal from "../components/ScanModal";
 import LanguageSelector from "../components/ui/LanguageSelector";
 import Achievements from "../components/Achievements";
 import BoostChart from "../components/BoostChart";
 import { Link, useNavigate } from "react-router-dom";
+
+function SessionStat({ icon: Icon, color, label, value, sub, to, nav }) {
+  return (
+    <div
+      onClick={to ? () => nav(to) : undefined}
+      style={{
+        flex: 1, minWidth: 0, padding: '14px 16px', borderRadius: 12,
+        background: 'var(--surface)', border: `1px solid rgba(255,255,255,0.07)`,
+        cursor: to ? 'pointer' : 'default',
+        transition: 'all 0.15s',
+        position: 'relative', overflow: 'hidden',
+      }}
+      onMouseEnter={to ? e => { e.currentTarget.style.background = `${color}0C`; e.currentTarget.style.borderColor = `${color}25`; } : undefined}
+      onMouseLeave={to ? e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; } : undefined}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div style={{ width: 26, height: 26, borderRadius: 7, background: `${color}15`, border: `1px solid ${color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon size={12} style={{ color }} />
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 900, color, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.04em', lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 3, fontWeight: 600 }}>{sub}</div>}
+    </div>
+  );
+}
 
 const LOGO = "https://customer-assets.emergentagent.com/job_firewall-pro-2/artifacts/yp9jj9mp_logo.ico";
 
@@ -54,6 +104,23 @@ export default function Inicio() {
     try { const v = localStorage.getItem("pine_opt_pct"); return v ? Number(v) : 0; } catch { return 0; }
   });
   const [tipIdx, setTipIdx]         = useState(0);
+  const [gamingScore, setGamingScore] = useState(0);
+
+  const sessionStats = useMemo(() => {
+    const tweaks = readLS("pine_tweaks", {});
+    const enabledCount = Object.values(tweaks).filter(v => v === "on").length;
+    const dns = readLS("pine_dns_choice", null);
+    const torneo = readLS("pine_torneo_history", []);
+    const killSessions = readLS("pine_applied_tweaks", []);
+    const installed = readLS("pine_store_installed", {});
+    return {
+      tweaks: enabledCount,
+      dns: dns?.name || null,
+      torneos: torneo.length,
+      sessions: killSessions.length,
+      installedApps: Object.values(installed).filter(Boolean).length,
+    };
+  }, []);
 
   useEffect(() => {
     if (window.electronAPI?.getComputerName) {
@@ -69,6 +136,11 @@ export default function Inicio() {
     }, 350);
     return () => clearTimeout(timer);
   }, [user]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setGamingScore(calcGamingScore()), 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Rotate AI tips every 8s
@@ -171,27 +243,29 @@ export default function Inicio() {
         {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Optimization ring */}
+          {/* Gaming Score ring */}
           <div className="glass hover-lift" style={{ padding: '20px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, background: 'radial-gradient(circle, rgba(20,255,114,0.08), transparent 70%)' }} />
             <div style={{ position: 'relative', width: 100, height: 100, margin: '0 auto' }}>
               <svg width="100" height="100" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="5" />
-                <circle cx="50" cy="50" r="42" fill="none" stroke="#14ff72" strokeWidth="5"
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
+                <circle cx="50" cy="50" r="42" fill="none"
+                  stroke={gamingScore >= 80 ? '#14ff72' : gamingScore >= 50 ? '#ffd166' : '#ff6b6b'}
+                  strokeWidth="6"
                   strokeLinecap="round"
-                  strokeDasharray={`${(optPct / 100) * (2 * Math.PI * 42)} ${2 * Math.PI * 42}`}
+                  strokeDasharray={`${(gamingScore / 100) * (2 * Math.PI * 42)} ${2 * Math.PI * 42}`}
                   transform="rotate(-90 50 50)"
-                  style={{ filter: 'drop-shadow(0 0 7px rgba(20,255,114,0.7))', transition: 'stroke-dasharray 1s cubic-bezier(0.22,1,0.36,1)' }}
+                  style={{ filter: `drop-shadow(0 0 7px ${gamingScore >= 80 ? 'rgba(20,255,114,0.7)' : gamingScore >= 50 ? 'rgba(255,209,102,0.7)' : 'rgba(255,107,107,0.7)'})`, transition: 'stroke-dasharray 1.2s cubic-bezier(0.22,1,0.36,1), stroke 0.4s' }}
                 />
               </svg>
               <div style={{
                 position: 'absolute', inset: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               }}>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#14ff72', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.04em', lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(20,255,114,0.6))' }}>
-                  {optPct}<span style={{ fontSize: 12 }}>%</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: gamingScore >= 80 ? '#14ff72' : gamingScore >= 50 ? '#ffd166' : '#ff6b6b', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-0.04em', lineHeight: 1, filter: `drop-shadow(0 0 8px ${gamingScore >= 80 ? 'rgba(20,255,114,0.6)' : 'rgba(255,209,102,0.5)'})`, transition: 'color 0.4s' }}>
+                  {gamingScore}
                 </span>
-                <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 2 }}>OPT</span>
+                <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 2 }}>SCORE</span>
               </div>
             </div>
             <div style={{ marginTop: 10, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
@@ -266,6 +340,30 @@ export default function Inicio() {
             percent={scan ? Math.round((scan.disk.used_gb / scan.disk.total_gb) * 100) : 0}
             icon={HardDrive} />
         </div>
+      </div>
+
+      {/* ── Session Stats Panel ── */}
+      <div className="fade-up" style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+        <SessionStat
+          icon={Zap} color="#14ff72" label="Tweaks activos" nav={nav} to="/optimizacion"
+          value={sessionStats.tweaks || 0}
+          sub={sessionStats.tweaks > 0 ? "optimizaciones on" : "sin configurar"}
+        />
+        <SessionStat
+          icon={Globe} color="#00ccff" label="DNS activo" nav={nav} to="/dns"
+          value={sessionStats.dns ? sessionStats.dns.split(" ")[0] : "—"}
+          sub={sessionStats.dns ? "configurado" : "sin cambiar"}
+        />
+        <SessionStat
+          icon={Trophy} color="#ffd166" label="Torneos" nav={nav} to="/torneo"
+          value={sessionStats.torneos}
+          sub={sessionStats.torneos > 0 ? `sesión${sessionStats.torneos > 1 ? "es" : ""} activa${sessionStats.torneos > 1 ? "s" : ""}` : "sin sesiones"}
+        />
+        <SessionStat
+          icon={TrendingUp} color="#d926ff" label="Gaming Score"
+          value={gamingScore}
+          sub={gamingScore >= 80 ? "Excelente 🔥" : gamingScore >= 50 ? "Bueno 👍" : "Mejorable"}
+        />
       </div>
 
       {/* ── Second row ── */}
